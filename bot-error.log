@@ -1,7 +1,0 @@
-INFO:aiogram.dispatcher:Start polling
-INFO:aiogram.dispatcher:Run polling for bot @markiuz_1bot id=8920429874 - 'markiuz'
-INFO:aiogram.event:Update id=151742741 is handled. Duration 328 ms by bot id=8920429874
-INFO:aiogram.event:Update id=151742737 is handled. Duration 358 ms by bot id=8920429874
-INFO:aiogram.event:Update id=151742738 is handled. Duration 375 ms by bot id=8920429874
-INFO:aiogram.event:Update id=151742740 is handled. Duration 406 ms by bot id=8920429874
-INFO:aiogram.event:Update id=151742739 is handled. Duration 422 ms by bot id=8920429874

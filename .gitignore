@@ -2,6 +2,11 @@
 .venv/
 __pycache__/
 *.pyc
+*.pyo
 bot.db
 .pytest_cache/
+bot-error.log
+bot-output.log
+*.pdf
+*.png
 
