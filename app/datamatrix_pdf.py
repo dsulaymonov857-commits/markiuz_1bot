@@ -10,6 +10,10 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 
+def _escape_ai_value(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
 def normalize_gs1_marking_code(raw_code: str) -> str:
     code = (
         raw_code.strip(" \t\r\n")
@@ -23,6 +27,8 @@ def normalize_gs1_marking_code(raw_code: str) -> str:
     if code.startswith("]d2"):
         code = code[3:]
     if code.startswith("(01)") and "(21)" in code and "(91)" in code and "(92)" in code:
+        return code
+    if code.startswith("(01)") and "(21)" in code and "(93)" in code:
         return code
 
     match = re.fullmatch(
@@ -39,15 +45,32 @@ def normalize_gs1_marking_code(raw_code: str) -> str:
             flags=re.DOTALL,
         )
     if not match:
+        mineral_match = re.fullmatch(
+            r"01(\d{14})21(.+?)\x1d93(.+)",
+            code,
+            flags=re.DOTALL,
+        )
+        if mineral_match:
+            gtin, serial, verification = mineral_match.groups()
+            return (
+                f"(01){gtin}"
+                f"(21){_escape_ai_value(serial)}"
+                f"(93){_escape_ai_value(verification)}"
+            )
         raise ValueError(
             "To'liq Asl Belgisi markirovka kodi kerak: 01+GTIN, 21+serial, "
-            "91 va 92 kriptografik qismlari bo'lishi shart."
+            "91/92 yoki 93 qismi bo'lishi shart."
         )
     gtin, serial, crypto_key, crypto_signature = match.groups()
-    return f"(01){gtin}(21){serial}(91){crypto_key}(92){crypto_signature}"
+    return (
+        f"(01){gtin}"
+        f"(21){_escape_ai_value(serial)}"
+        f"(91){_escape_ai_value(crypto_key)}"
+        f"(92){_escape_ai_value(crypto_signature)}"
+    )
 
 
-def create_datamatrix_pdf(codes: list[str]) -> bytes:
+def create_datamatrix_pdf(codes: list[str], product_type: str | None = None) -> bytes:
     output = BytesIO()
     canvas = Canvas(output, pagesize=A4)
     page_width, page_height = A4

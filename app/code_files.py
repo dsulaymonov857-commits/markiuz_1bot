@@ -4,7 +4,28 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 
-HEADER_VALUES = {"code", "codes", "kod", "kodlar", "код", "коды", "datamatrix", "data matrix"}
+HEADER_VALUES = {
+    "code",
+    "codes",
+    "kod",
+    "kodlar",
+    "код",
+    "коды",
+    "datamatrix",
+    "data matrix",
+}
+
+
+def _normalize_code(value: str) -> str:
+    return (
+        value.strip(" \t\r\n")
+        .replace("_x001D_", "\x1d")
+        .replace("_x001d_", "\x1d")
+        .replace("\\u001D", "\x1d")
+        .replace("\\u001d", "\x1d")
+        .replace("<GS>", "\x1d")
+        .replace("<gs>", "\x1d")
+    )
 
 
 def _unique_codes(values: list[str]) -> list[str]:
@@ -13,7 +34,7 @@ def _unique_codes(values: list[str]) -> list[str]:
     for value in values:
         # Do not use strip(): ASCII 29 (GS) is required inside marking codes
         # and Python considers it whitespace.
-        code = value.strip(" \t\r\n")
+        code = _normalize_code(value)
         if not code or code.lower() in HEADER_VALUES or code in seen:
             continue
         seen.add(code)
@@ -52,3 +73,23 @@ def read_codes(file_name: str, content: bytes) -> list[str]:
         return _unique_codes(values)
 
     raise ValueError("Faqat .xlsx yoki .csv fayl yuboring.")
+
+
+def select_full_marking_codes(codes: list[str], product_type: str | None = None) -> list[str]:
+    if product_type == "Mineral o'g'itlar":
+        return [
+            code
+            for code in codes
+            if code.startswith("01")
+            and code[2:16].isdigit()
+            and "21" in code[16:20]
+            and "\x1d93" in code
+        ]
+    return [
+        code
+        for code in codes
+        if code.startswith("01")
+        and code[2:16].isdigit()
+        and "\x1d91" in code
+        and "\x1d92" in code
+    ]

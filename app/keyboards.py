@@ -25,6 +25,7 @@ def datamatrix_product_menu() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text="Suv mahsuloti")],
             [KeyboardButton(text="Maishiy texnika")],
+            [KeyboardButton(text="Mineral o'g'itlar")],
             [KeyboardButton(text="Bekor qilish")],
         ],
         resize_keyboard=True,

@@ -1,5 +1,5 @@
-import json
 import asyncio
+import json
 from contextlib import suppress
 from html import escape
 from io import BytesIO
@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, Message
 
 from app.asl_client import AslApiError, AslClient
-from app.code_files import read_codes
+from app.code_files import read_codes, select_full_marking_codes
 from app.datamatrix_pdf import create_datamatrix_pdf
 from app.keyboards import cancel_menu, datamatrix_product_menu, main_menu
 from app.states import AggregationFlow, ApiKeyFlow, DataMatrixFlow
@@ -77,16 +77,14 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
 
     @router.message(
         DataMatrixFlow.waiting_for_product_type,
-        F.text.in_({"Suv mahsuloti", "Maishiy texnika"}),
+        F.text.in_({"Suv mahsuloti", "Maishiy texnika", "Mineral o'g'itlar"}),
     )
     async def datamatrix_product_type(message: Message, state: FSMContext) -> None:
         await state.update_data(product_type=message.text)
         await state.set_state(DataMatrixFlow.waiting_for_file)
         await message.answer(
             f"Tanlandi: {escape(message.text or '')}\n\n"
-            "Kodlar joylashgan .xlsx yoki .csv faylni yuboring.\n"
-            "Har bir katakda Asl Belgisi bergan to'liq markirovka kodi bo'lishi kerak: "
-            "01, 21, 91 va 92 qismlari bilan.",
+            "Kodlar joylashgan .xlsx yoki .csv faylni yuboring.",
             reply_markup=cancel_menu(),
         )
 
@@ -103,19 +101,27 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
         buffer = BytesIO()
         await message.bot.download(document, destination=buffer)
         try:
-            codes = await asyncio.to_thread(
+            raw_codes = await asyncio.to_thread(
                 read_codes, document.file_name or "codes", buffer.getvalue()
             )
+            data = await state.get_data()
+            product_type = data.get("product_type", "Mahsulot")
+            codes = select_full_marking_codes(raw_codes, product_type)
             if not codes:
-                raise ValueError("Fayl ichidan kod topilmadi.")
+                if product_type == "Mineral o'g'itlar":
+                    raise ValueError("Faylda 01+21+<GS>93 formatdagi kod topilmadi.")
+                raise ValueError("Faylda 01+21+<GS>91+<GS>92 formatdagi kod topilmadi.")
             pdf = await asyncio.to_thread(create_datamatrix_pdf, codes)
         except Exception as exc:
             await message.answer(f"Faylni qayta ishlab bo'lmadi: {escape(str(exc))}")
             return
 
-        data = await state.get_data()
-        product_type = data.get("product_type", "Mahsulot")
-        file_prefix = "suv-mahsuloti" if product_type == "Suv mahsuloti" else "maishiy-texnika"
+        if product_type == "Suv mahsuloti":
+            file_prefix = "suv-mahsuloti"
+        elif product_type == "Maishiy texnika":
+            file_prefix = "maishiy-texnika"
+        else:
+            file_prefix = "mineral-ogitlar"
         await message.answer_document(
             BufferedInputFile(pdf, filename=f"{file_prefix}-datamatrix.pdf"),
             caption=(
@@ -224,7 +230,7 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
         await state.set_state(AggregationFlow.waiting_for_children)
         await message.answer(
             "2. Единица товара кодларини юборинг.\n"
-            "1–200 000 ta kod qabul qilinadi.\n"
+            "1-200 000 ta kod qabul qilinadi.\n"
             "Ko'p kod bo'lsa .csv yoki .xlsx fayl yuboring."
         )
 
@@ -242,7 +248,7 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
         if len(child_codes) != expected_count:
             await message.answer(
                 f"Кодлар сони нотўғри.\nКерак: {expected_count} та "
-                f"({len(parent_codes)} × {units_per_group}).\nЮборилди: {len(child_codes)} та."
+                f"({len(parent_codes)} x {units_per_group}).\nЮборилди: {len(child_codes)} та."
             )
             return
         results = []
@@ -252,7 +258,7 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
             start = index * units_per_group
             group_children = child_codes[start : start + units_per_group]
             try:
-                result = await asl.create_aggregation(
+                await asl.create_aggregation(
                     api_key,
                     data["business_place_id"],
                     parent_code,
@@ -269,7 +275,7 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
                         "Saqlangan Business Place ID noto'g'ri. To'g'ri raqamli ID ni kiriting:"
                     )
                     return
-                results.append(f"{index + 1}. XATO: {parent_code} — {exc}")
+                results.append(f"{index + 1}. XATO: {parent_code} - {exc}")
                 error_count += 1
         await message.answer(
             "Agregatsiya yakunlandi.\n"
