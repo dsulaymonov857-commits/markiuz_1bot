@@ -4,7 +4,7 @@ Telegram orqali Asl Belgisi markirovka jarayonlarini boshqarish uchun MVP:
 
 - `/start` dan keyin asosiy menyu;
 - API kalitni tekshirish va shifrlangan holda SQLite bazada saqlash;
-- mahsulot kartochkasini yaratish so'rovi;
+- Excel/CSV kodlardan DataMatrix PDF yaratish: suv mahsuloti, maishiy texnika, mineral o'g'itlar;
 - parent va DataMatrix kodlari orqali agregatsiya so'rovi.
 
 ## Muhim integratsiya eslatmasi
