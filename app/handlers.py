@@ -3,6 +3,7 @@ import json
 from contextlib import suppress
 from html import escape
 from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from aiogram import F, Router
 from aiogram.filters import CommandStart
@@ -15,6 +16,13 @@ from app.datamatrix_pdf import create_datamatrix_pdf
 from app.keyboards import cancel_menu, datamatrix_product_menu, main_menu
 from app.states import AggregationFlow, ApiKeyFlow, DataMatrixFlow
 from app.storage import UserStorage
+
+
+def create_zip_with_pdf(pdf: bytes, pdf_filename: str) -> bytes:
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr(pdf_filename, pdf)
+    return output.getvalue()
 
 
 def create_router(storage: UserStorage, asl: AslClient) -> Router:
@@ -122,11 +130,14 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
             file_prefix = "maishiy-texnika"
         else:
             file_prefix = "mineral-ogitlar"
+        pdf_filename = f"{file_prefix}-datamatrix.pdf"
+        zip_filename = f"{file_prefix}-datamatrix.zip"
+        zip_data = await asyncio.to_thread(create_zip_with_pdf, pdf, pdf_filename)
         await message.answer_document(
-            BufferedInputFile(pdf, filename=f"{file_prefix}-datamatrix.pdf"),
+            BufferedInputFile(zip_data, filename=zip_filename),
             caption=(
                 f"{escape(product_type)}: {len(codes)} ta kod "
-                "DataMatrix PDF formatiga aylantirildi."
+                "DataMatrix PDF ZIP ichida tayyor."
             ),
             reply_markup=main_menu(),
         )
