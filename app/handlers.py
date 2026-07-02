@@ -111,7 +111,7 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
                 if product_type == "Mineral o'g'itlar":
                     raise ValueError("Faylda 01+21+<GS>93 formatdagi kod topilmadi.")
                 raise ValueError("Faylda 01+21+<GS>91+<GS>92 formatdagi kod topilmadi.")
-            pdf = await asyncio.to_thread(create_datamatrix_pdf, codes)
+            pdf = await asyncio.to_thread(create_datamatrix_pdf, codes, product_type)
         except Exception as exc:
             await message.answer(f"Faylni qayta ishlab bo'lmadi: {escape(str(exc))}")
             return

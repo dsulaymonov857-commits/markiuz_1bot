@@ -1,12 +1,10 @@
 from io import BytesIO
 import re
-import textwrap
 
 import zxingcpp
 from PIL import Image
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
-from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 
@@ -73,21 +71,23 @@ def normalize_gs1_marking_code(raw_code: str) -> str:
 def create_datamatrix_pdf(codes: list[str], product_type: str | None = None) -> bytes:
     output = BytesIO()
     canvas = Canvas(output, pagesize=A4)
-    page_width, page_height = A4
-    columns, rows = 2, 3
-    cell_width = page_width / columns
-    cell_height = page_height / rows
-    matrix_size = 145
+    _, page_height = A4
+    columns, rows = 7, 10
+    matrix_size = 56
+    margin_x, margin_y = 12, 12
+    gap_x, gap_y = 29, 24
+    per_page = columns * rows
 
     for index, raw_code in enumerate(codes):
-        if index and index % (columns * rows) == 0:
+        if index and index % per_page == 0:
             canvas.showPage()
 
-        position = index % (columns * rows)
+        position = index % per_page
         column = position % columns
         row = position // columns
-        x = column * cell_width
-        y = page_height - (row + 1) * cell_height
+        x = margin_x + column * (matrix_size + gap_x)
+        top_y = margin_y + row * (matrix_size + gap_y)
+        y = page_height - top_y - matrix_size
 
         try:
             code = normalize_gs1_marking_code(raw_code)
@@ -102,35 +102,23 @@ def create_datamatrix_pdf(codes: list[str], product_type: str | None = None) -> 
             gs1=True,
             force_square=True,
         )
-        matrix = Image.fromarray(zxingcpp.write_barcode_to_image(barcode, matrix_size))
+        matrix = Image.fromarray(
+            zxingcpp.write_barcode_to_image(barcode, scale=10, add_quiet_zones=True)
+        )
         matrix_buffer = BytesIO()
         matrix.save(matrix_buffer, format="PNG")
         matrix_buffer.seek(0)
         canvas.drawImage(
             ImageReader(matrix_buffer),
-            x + (cell_width - matrix_size) / 2,
-            y + 92,
+            x,
+            y,
             width=matrix_size,
             height=matrix_size,
             preserveAspectRatio=True,
             mask="auto",
         )
 
-        label_source = raw_code.replace("\x1d", "<GS>")
-        label_lines = textwrap.wrap(
-            label_source,
-            width=42,
-            break_long_words=True,
-            break_on_hyphens=False,
-        )
-        canvas.setFont("Courier", 6)
-        for line_index, label in enumerate(label_lines[:5]):
-            label_width = stringWidth(label, "Courier", 6)
-            canvas.drawString(
-                x + (cell_width - label_width) / 2,
-                y + 72 - line_index * 8,
-                label,
-            )
-
+    if product_type:
+        canvas.setTitle(f"{product_type} DataMatrix")
     canvas.save()
     return output.getvalue()
