@@ -102,14 +102,14 @@ def normalize_marking_code_components(raw_code: str) -> tuple[str, str]:
             "va 91/92 yoki 93 kriptografik qismlari bo'lishi shart."
         )
 
-    esc_serial = serial.replace("(", "\\(")
+    esc_serial = serial.replace("(", "\\(").replace(")", "\\)")
     if ai93 is not None:
-        esc_ai93 = ai93.replace("(", "\\(")
+        esc_ai93 = ai93.replace("(", "\\(").replace(")", "\\)")
         hri = f"(01){gtin}(21){esc_serial}(93){esc_ai93}"
         raw_gs = f"01{gtin}21{serial}\x1d93{ai93}"
     else:
-        esc_ai91 = ai91.replace("(", "\\(")
-        esc_ai92 = ai92.replace("(", "\\(")
+        esc_ai91 = ai91.replace("(", "\\(").replace(")", "\\)")
+        esc_ai92 = ai92.replace("(", "\\(").replace(")", "\\)")
         hri = f"(01){gtin}(21){esc_serial}(91){esc_ai91}(92){esc_ai92}"
         raw_gs = f"01{gtin}21{serial}\x1d91{ai91}\x1d92{ai92}"
 

@@ -24,8 +24,9 @@ class CodeFilesTest(unittest.TestCase):
 
     def test_gs1_escapes_parentheses_inside_serial(self) -> None:
         code = "010692181781001621abc(def)ghi\x1d91liO1\x1d92crypto"
+        hri, _ = normalize_gs1_marking_code(code)
         self.assertEqual(
-            normalize_gs1_marking_code(code),
+            hri,
             "(01)06921817810016(21)abc\\(def\\)ghi(91)liO1(92)crypto",
         )
 
