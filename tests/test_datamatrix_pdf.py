@@ -1,11 +1,13 @@
+import io
 import unittest
+import zipfile
 
 import fitz
 import zxingcpp
 from PIL import Image
 
 from app.code_files import read_codes
-from app.datamatrix_pdf import create_datamatrix_pdf
+from app.datamatrix_pdf import create_datamatrix_pdf, create_datamatrix_zip
 
 
 class DataMatrixPdfTest(unittest.TestCase):
@@ -68,6 +70,39 @@ class DataMatrixPdfTest(unittest.TestCase):
         codes = read_codes("codes.csv", raw_code.encode())
         self.assertEqual(codes, [raw_code])
         self.assertTrue(create_datamatrix_pdf(codes).startswith(b"%PDF"))
+
+    def test_ai93_code_with_excel_x001D_separator(self) -> None:
+        raw_code = "0104780173550057217Xy;CHBEV98Fw_x001D_9312Xo"
+        codes = [raw_code]
+        pdf = create_datamatrix_pdf(codes)
+        document = fitz.open(stream=pdf, filetype="pdf")
+        pixmap = document[0].get_pixmap(matrix=fitz.Matrix(3, 3), alpha=False)
+        image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+        decoded = zxingcpp.read_barcodes(image)
+
+        self.assertEqual(len(decoded), 1)
+        self.assertEqual(decoded[0].content_type, zxingcpp.ContentType.GS1)
+        self.assertEqual(decoded[0].symbology_identifier, "]d2")
+        self.assertEqual(
+            bytes(decoded[0].bytes),
+            b"0104780173550057217Xy;CHBEV98Fw\x1d9312Xo",
+        )
+
+    def test_create_datamatrix_zip(self) -> None:
+        raw_code = "0104780173550057217Xy;CHBEV98Fw_x001D_9312Xo"
+        zip_bytes = create_datamatrix_zip([raw_code])
+        self.assertTrue(len(zip_bytes) > 0)
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            namelist = zf.namelist()
+            self.assertIn("0001_datamatrix.png", namelist)
+            png_content = zf.read("0001_datamatrix.png")
+            img = Image.open(io.BytesIO(png_content))
+            decoded = zxingcpp.read_barcodes(img)
+            self.assertEqual(len(decoded), 1)
+            self.assertEqual(
+                bytes(decoded[0].bytes),
+                b"0104780173550057217Xy;CHBEV98Fw\x1d9312Xo",
+            )
 
 
 def _xlsx_with_code(code: str) -> bytes:

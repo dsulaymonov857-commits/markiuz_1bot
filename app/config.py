@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     asl_aggregation_create_path: str
     asl_timeout_seconds: float = Field(default=30, gt=0)
     database_path: str = "bot.db"
-    moderation_host: str = "127.0.0.1"
-    moderation_port: int = 8765
+    moderation_host: str = "0.0.0.0"
+    moderation_port: int = Field(default=8765, alias="PORT")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

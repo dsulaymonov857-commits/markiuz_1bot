@@ -11,7 +11,7 @@ from aiogram.types import BufferedInputFile, Message
 
 from app.asl_client import AslApiError, AslClient
 from app.code_files import read_codes
-from app.datamatrix_pdf import create_datamatrix_pdf
+from app.datamatrix_pdf import create_datamatrix_pdf, create_datamatrix_zip
 from app.keyboards import cancel_menu, datamatrix_product_menu, main_menu
 from app.states import AggregationFlow, ApiKeyFlow, DataMatrixFlow
 from app.storage import UserStorage
@@ -77,7 +77,7 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
 
     @router.message(
         DataMatrixFlow.waiting_for_product_type,
-        F.text.in_({"Suv mahsuloti", "Maishiy texnika"}),
+        F.text.in_({"Suv mahsuloti", "Maishiy texnika", "O'g'itlar", "O‘g‘itlar", "O`g`itlar"}),
     )
     async def datamatrix_product_type(message: Message, state: FSMContext) -> None:
         await state.update_data(product_type=message.text)
@@ -108,22 +108,56 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
             )
             if not codes:
                 raise ValueError("Fayl ichidan kod topilmadi.")
-            pdf = await asyncio.to_thread(create_datamatrix_pdf, codes)
         except Exception as exc:
-            await message.answer(f"Faylni qayta ishlab bo'lmadi: {escape(str(exc))}")
+            await message.answer(f"Faylni o'qib bo'lmadi: {escape(str(exc))}")
             return
+
+        status_msg = await message.answer(
+            f"⏳ Fayl qabul qilindi. Jami: <b>{len(codes)}</b> ta kod.\n"
+            "DataMatrix PDF va ZIP arxiv tayyorlanmoqda, iltimos kuting..."
+        )
 
         data = await state.get_data()
         product_type = data.get("product_type", "Mahsulot")
-        file_prefix = "suv-mahsuloti" if product_type == "Suv mahsuloti" else "maishiy-texnika"
-        await message.answer_document(
-            BufferedInputFile(pdf, filename=f"{file_prefix}-datamatrix.pdf"),
-            caption=(
-                f"{escape(product_type)}: {len(codes)} ta kod "
-                "DataMatrix PDF formatiga aylantirildi."
-            ),
-            reply_markup=main_menu(),
-        )
+        if product_type == "Suv mahsuloti":
+            file_prefix = "suv-mahsuloti"
+        elif product_type in {"O'g'itlar", "O‘g‘itlar", "O`g`itlar"}:
+            file_prefix = "ogitlar"
+        else:
+            file_prefix = "maishiy-texnika"
+
+        # Split into chunks if more than 2000 codes to ensure instant download and no Telegram limits
+        chunk_size = 2000
+        code_chunks = [codes[i : i + chunk_size] for i in range(0, len(codes), chunk_size)]
+
+        for chunk_idx, chunk in enumerate(code_chunks, start=1):
+            suffix = f"-qism-{chunk_idx}" if len(code_chunks) > 1 else ""
+            part_info = f" ({chunk_idx}/{len(code_chunks)}-qism)" if len(code_chunks) > 1 else ""
+
+            # 1. Generate & Send PDF
+            try:
+                pdf = await asyncio.to_thread(create_datamatrix_pdf, chunk)
+                await message.answer_document(
+                    BufferedInputFile(pdf, filename=f"{file_prefix}-datamatrix{suffix}.pdf"),
+                    caption=f"📄 {escape(product_type)}: {len(chunk)} ta kod PDF formatida{part_info}.",
+                )
+            except Exception as exc:
+                await message.answer(f"PDF tayyorlashda xatolik yuz berdi: {escape(str(exc))}")
+
+            # 2. Generate & Send ZIP
+            try:
+                zip_bytes = await asyncio.to_thread(create_datamatrix_zip, chunk)
+                await message.answer_document(
+                    BufferedInputFile(zip_bytes, filename=f"{file_prefix}-datamatrix-rasmlar{suffix}.zip"),
+                    caption=f"📦 {len(chunk)} ta DataMatrix alohida PNG rasmlar arxivi (.ZIP){part_info}",
+                    reply_markup=main_menu() if chunk_idx == len(code_chunks) else None,
+                )
+            except Exception as exc:
+                await message.answer(f"ZIP arxiv tayyorlashda xatolik: {escape(str(exc))}")
+
+        with suppress(Exception):
+            await status_msg.delete()
+
         await state.clear()
 
     @router.message(ApiKeyFlow.waiting_for_key)
@@ -279,7 +313,6 @@ def create_router(storage: UserStorage, asl: AslClient) -> Router:
             + escape("\n".join(results[:30])),
             reply_markup=main_menu(),
         )
-        storage.delete_api_key(message.from_user.id)
         await state.clear()
 
     @router.message(AggregationFlow.waiting_for_children)
