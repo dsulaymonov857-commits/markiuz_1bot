@@ -25,6 +25,10 @@ def _normalize_code(value: str) -> str:
         .replace("\\u001d", "\x1d")
         .replace("<GS>", "\x1d")
         .replace("<gs>", "\x1d")
+        .replace("[GS]", "\x1d")
+        .replace("[gs]", "\x1d")
+        .replace("lVT", "\x1d")
+        .replace("LVT", "\x1d")
     )
 
 
@@ -76,20 +80,20 @@ def read_codes(file_name: str, content: bytes) -> list[str]:
 
 
 def select_full_marking_codes(codes: list[str], product_type: str | None = None) -> list[str]:
-    if product_type == "Mineral o'g'itlar":
-        return [
-            code
-            for code in codes
-            if code.startswith("01")
-            and code[2:16].isdigit()
-            and "21" in code[16:20]
-            and "\x1d93" in code
-        ]
-    return [
-        code
-        for code in codes
-        if code.startswith("01")
-        and code[2:16].isdigit()
-        and "\x1d91" in code
-        and "\x1d92" in code
-    ]
+    is_short_crypto = product_type in {
+        "Mineral o'g'itlar",
+        "O'g'itlar",
+        "O‘g‘itlar",
+        "O`g`itlar",
+    }
+    result: list[str] = []
+    for code in codes:
+        if not (code.startswith("01") and code[2:16].isdigit()):
+            continue
+        if is_short_crypto:
+            if "93" in code:
+                result.append(code)
+        else:
+            if "91" in code and "92" in code:
+                result.append(code)
+    return result

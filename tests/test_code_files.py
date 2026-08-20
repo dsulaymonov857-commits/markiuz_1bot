@@ -49,6 +49,14 @@ class CodeFilesTest(unittest.TestCase):
         pdf = create_datamatrix_pdf([code], "Mineral o'g'itlar")
         self.assertTrue(pdf.startswith(b"%PDF"))
 
+    def test_user_lvt_marking_code(self) -> None:
+        raw_code = '0106973009312211217l3!CMzB;"Jq(Gtz-lVT91cuI=92y9ipdlVTSW9lRUl6R0xDc1VzZEZKY2pXd3VQZQlI3/Y='
+        codes = read_codes("codes.csv", (raw_code + "\n").encode())
+        selected = select_full_marking_codes(codes, "Maishiy texnika")
+        self.assertEqual(len(selected), 1)
+        pdf = create_datamatrix_pdf(selected, "Maishiy texnika")
+        self.assertTrue(pdf.startswith(b"%PDF"))
+
 
 if __name__ == "__main__":
     unittest.main()

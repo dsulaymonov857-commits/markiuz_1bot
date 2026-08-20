@@ -11,7 +11,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import BufferedInputFile, Message
 
 from app.asl_client import AslApiError, AslClient
-from app.code_files import read_codes
+from app.code_files import read_codes, select_full_marking_codes
 from app.datamatrix_pdf import create_datamatrix_pdf, create_datamatrix_zip
 from app.keyboards import cancel_menu, datamatrix_product_menu, main_menu
 from app.states import AggregationFlow, ApiKeyFlow, DataMatrixFlow

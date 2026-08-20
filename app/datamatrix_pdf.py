@@ -23,6 +23,8 @@ def normalize_marking_code_components(raw_code: str) -> tuple[str, str]:
         .replace("<gs>", "\x1d")
         .replace("[GS]", "\x1d")
         .replace("[gs]", "\x1d")
+        .replace("lVT", "\x1d")
+        .replace("LVT", "\x1d")
     )
     if code.startswith("]d2"):
         code = code[3:]
