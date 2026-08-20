@@ -7,7 +7,6 @@ import zxingcpp
 from PIL import Image, ImageDraw
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
-from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen.canvas import Canvas
 
 
@@ -120,7 +119,7 @@ def normalize_marking_code_components(raw_code: str) -> tuple[str, str]:
 normalize_gs1_marking_code = normalize_marking_code_components
 
 
-def create_datamatrix_pdf(codes: list[str]) -> bytes:
+def create_datamatrix_pdf(codes: list[str], product_type: str | None = None) -> bytes:
     output = BytesIO()
     canvas = Canvas(output, pagesize=A4)
     page_width, page_height = A4
