@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+bot-error.log
+bot-output.log
+bot.db
+.env
+.env.example
+tests/

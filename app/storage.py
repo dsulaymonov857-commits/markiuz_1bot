@@ -3,6 +3,7 @@ import json
 import secrets
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from cryptography.fernet import Fernet
 
@@ -13,6 +14,9 @@ class UserStorage:
         self.cipher = Fernet(encryption_key.encode())
 
     def initialize(self) -> None:
+        db_path = Path(self.database_path)
+        if db_path.parent:
+            db_path.parent.mkdir(parents=True, exist_ok=True)
         with closing(sqlite3.connect(self.database_path)) as connection:
             connection.execute(
                 """

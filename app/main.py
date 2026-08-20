@@ -86,9 +86,15 @@ async def run_bot() -> None:
 
 
 def main() -> None:
+    from logging.handlers import RotatingFileHandler
+    from pathlib import Path
+    log_file = Path(__file__).resolve().parent.parent / "bot.log"
+    file_handler = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
+    console_handler = logging.StreamHandler(sys.stdout)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        handlers=[file_handler, console_handler],
     )
     try:
         asyncio.run(run_bot())

@@ -1,19 +1,25 @@
 """Continuous Bot Runner with Auto-Restart Watchdog."""
 
 import logging
+from logging.handlers import RotatingFileHandler
 import subprocess
 import sys
 import time
 from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+PYTHON_EXE = sys.executable
+LOG_FILE = ROOT_DIR / "bot.log"
+
+file_handler = RotatingFileHandler(LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
+console_handler = logging.StreamHandler(sys.stdout)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [WATCHDOG] %(message)s",
+    handlers=[file_handler, console_handler],
 )
 logger = logging.getLogger("Watchdog")
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
-PYTHON_EXE = sys.executable
 
 
 def run_forever():
